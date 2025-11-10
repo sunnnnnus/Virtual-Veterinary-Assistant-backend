@@ -1,0 +1,36 @@
+# ✅ Node.js modules
+node_modules/
+
+# ✅ 環境變數與金鑰
+.env
+.env.local
+.env.*.local
+
+# ✅ 日誌與除錯
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ✅ 系統雜訊
+.DS_Store
+Thumbs.db
+
+# ✅ IDE 快取檔案
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ✅ 測試輸出
+coverage/
+*.lcov
+
+# ✅ 部署輸出
+dist/
+build/
+
+# ✅ 其他常見暫存
+tmp/
+temp/
