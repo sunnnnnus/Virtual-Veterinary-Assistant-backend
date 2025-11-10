@@ -19,7 +19,7 @@ const symptomScore = {}; // key: conversationId, value: { lastKey, score }
 export async function getPetDetailFromDB(petId) {
   const sql = `
     SELECT pId, pName, species, age, sex, weight 
-    FROM pet 
+    FROM Pet 
     WHERE pId = ? 
     LIMIT 1
   `;
