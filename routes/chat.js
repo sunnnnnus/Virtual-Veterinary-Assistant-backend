@@ -92,7 +92,7 @@ router.post('/chat', async (req, res) => {
     // AI 初步判斷疾病+追問
     let aiDiseases = [];
     let aiSeverity = '中';
-    let nextQuestion = '請再次輸入剛剛的症狀';
+    let nextQuestion = '系統忙碌中，請再次輸入...';
 
     // 穩定分數提前判斷
     const lastSeverity = symptomScore[cId]?.lastSeverity || '';
@@ -295,9 +295,10 @@ router.post('/chat', async (req, res) => {
 
     // care-suggestion-card
     const carePrompt = `
-   你是一位獸醫助理，請根據以下語氣風格回覆飼主：
+    你是一位獸醫助理，請根據以下語氣風格回覆飼主：
     ${stylePrompt?.trim()}
-    請根據以下資訊，不用再和使用者打招呼直接給出三點具體照護建議，也請避免重複過往建議：
+
+    請根據以下資訊，直接給出三點具體照護方法，避免重複過往建議，不需打招呼、不需安慰語、不需情緒化語句：
 
     寵物資訊：
     - 種類與名字：${petContext.species} ${petName}
