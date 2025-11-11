@@ -1,8 +1,9 @@
-// services/dbService.js
 import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
+dotenv.config(); 
 
 // 從 .env 讀取資料庫設定
-const dbConfig = {
+/*const dbConfig = {
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
@@ -10,10 +11,22 @@ const dbConfig = {
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
+};*/
+
+const isProd = process.env.NODE_ENV === 'production';
+
+const dbConfig = {
+  host: isProd ? process.env.PROD_DB_HOST : process.env.LOCAL_DB_HOST,
+  user: isProd ? process.env.PROD_DB_USER : process.env.LOCAL_DB_USER,
+  password: isProd ? process.env.PROD_DB_PASSWORD : process.env.LOCAL_DB_PASSWORD,
+  database: isProd ? process.env.PROD_DB_NAME : process.env.LOCAL_DB_NAME,
+  port: isProd ? process.env.PROD_DB_PORT : process.env.LOCAL_DB_PORT,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 };
 
 // 建立資料庫連線池 (Connection Pool)
-// 這是 Node.js 處理多個並發請求的最佳方式
 const pool = mysql.createPool(dbConfig);
 
 // 測試連線是否成功
@@ -28,5 +41,4 @@ pool.getConnection()
         process.exit(1); 
     });
 
-// 導出連線池，供其他模組使用
 export default pool;

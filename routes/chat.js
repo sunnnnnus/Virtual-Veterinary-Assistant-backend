@@ -243,16 +243,18 @@ router.post('/chat', async (req, res) => {
 
 
     // 決定最終嚴重度與建議
-    const dbSeverity = dbDiseases.some(d => d.severity === '高') ? '高'
-      : dbDiseases.some(d => d.severity === '中') ? '中'
+    const dbDiseasesSafe = dbDiseases ?? [];
+
+    const dbSeverity = dbDiseasesSafe.some(d => d.severity === '高') ? '高'
+      : dbDiseasesSafe.some(d => d.severity === '中') ? '中'
       : '低';
 
     const finalSeverity = aiSeverity === '高' || dbSeverity === '高' ? '高'
       : aiSeverity === '中' || dbSeverity === '中' ? '中'
       : '低';
 
-    const dbAdvice = dbDiseases.map(d => d.advice).join('；') || '建議觀察情況，若惡化請就醫。';
-    const identified = dbDiseases.length > 0 ? dbDiseases.map(d => d.name) : aiDiseases;
+    const dbAdvice = dbDiseasesSafe.map(d => d.advice).join('；') || '建議觀察情況，若惡化請就醫。';
+    const identified = dbDiseasesSafe.length > 0 ? dbDiseasesSafe.map(d => d.name) : aiDiseases;
 
     // 整合：生成 AI 回覆
     const finalPrompt = `
