@@ -40,23 +40,24 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: '缺少必要欄位或格式錯誤' });
   }
 
-  // fallback diseaseId，如果沒傳或是無效值，就用 9999
-  const safeDiseaseId = typeof diseaseId === 'number' && diseaseId > 0 ? diseaseId : 9999;
+  const safeTitle = title?.trim() || '問診紀錄';
+  
+  const safeDiseaseId = Number.isInteger(Number(diseaseId)) && Number(diseaseId) > 0
+    ? Number(diseaseId)
+    : 9999;
 
   try {
-    // 新增 Conversation
     const [convResult] = await db.query(
       `INSERT INTO Conversation (petId, title, severity, finalAdvice, diseaseId)
-       VALUES (?, ?, ?, ?, ?)`,
-      [petId, title, severity, finalAdvice, safeDiseaseId]
+      VALUES (?, ?, ?, ?, ?)`,
+      [petId, safeTitle, severity, finalAdvice, safeDiseaseId]
     );
     const conversationId = convResult.insertId;
 
-    // 批次新增 Message
     for (const msg of messages) {
       await db.query(
         `INSERT INTO Message (conversationId, senderType, senderName, content)
-         VALUES (?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?)`,
         [
           conversationId,
           msg.sender === 'ai' ? 'AI' : 'User',
@@ -71,6 +72,7 @@ router.post('/', async (req, res) => {
     console.error('儲存問診紀錄失敗:', err);
     res.status(500).json({ error: '伺服器錯誤，無法儲存問診紀錄' });
   }
+
 });
 
 export default router;

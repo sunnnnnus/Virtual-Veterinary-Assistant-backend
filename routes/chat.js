@@ -71,7 +71,7 @@ function normalizeDiseaseName(name) {
 // Chat Route
 // ===============================
 router.post('/chat', async (req, res) => {
-  const { userId, petId, message, conversationId, finalCheck, stylePrompt, voiceName } = req.body;
+  const { userId, petId, message, conversationId, finalCheck, stylePrompt } = req.body;
   console.log('收到聊天請求:', { userId, petId, message, conversationId, finalCheck });
   let shouldFinalize = false;
   let finalCheckType = 'none';
@@ -88,21 +88,6 @@ router.post('/chat', async (req, res) => {
     }
     const petName = petContext.pName;
     const cId = typeof conversationId === 'number' ? conversationId : Date.now();
-
-    // AI 初步判斷疾病+追問
-    let aiDiseases = [];
-    let aiSeverity = '中';
-    let nextQuestion = '系統忙碌中，請再次輸入...';
-
-    // 穩定分數提前判斷
-    const lastSeverity = symptomScore[cId]?.lastSeverity || '';
-    const lastScore = symptomScore[cId]?.score || 0;
-
-
-    if (!finalCheck && lastSeverity === '低' && lastScore >= 2) {
-      shouldFinalize = true;
-      console.log('根據上一輪穩定分數與嚴重度，提前進入 finalCheck');
-    }
 
     if (!finalCheck && !shouldFinalize) {
       try {
@@ -168,55 +153,50 @@ router.post('/chat', async (req, res) => {
 
         console.log('AI 疾病:', aiDiseases, '嚴重度:', aiSeverity, '追問:', nextQuestion);
 
-      const normalizedDiseases = aiDiseases.map(normalizeDiseaseName);
-      const prevDiseases = symptomScore[cId]?.lastDiseases || [];
-      const overlap = normalizedDiseases.filter(d => prevDiseases.includes(d));
-      const hasOverlap = overlap.length > 0;
+        const normalizedDiseases = aiDiseases.map(normalizeDiseaseName);
+        const prevDiseases = symptomScore[cId]?.lastDiseases || [];
+        const overlap = normalizedDiseases.filter(d => prevDiseases.includes(d));
+        const hasOverlap = overlap.length > 0;
 
-      if (!symptomScore[cId]) {
-        symptomScore[cId] = { score: 0, lastDiseases: [], lastSeverity: '' };
-      }
+        if (!symptomScore[cId]) {
+          symptomScore[cId] = { score: 0, lastDiseases: [], lastSeverity: '' };
+        }
 
-      if (hasOverlap) {
-        symptomScore[cId].score += 1;
-      } else {
-        symptomScore[cId].score = 1;
-      }
+        if (hasOverlap) {
+          symptomScore[cId].score += 1;
+        } else {
+          symptomScore[cId].score = 1;
+        }
 
-      symptomScore[cId].lastDiseases = normalizedDiseases;
-      symptomScore[cId].lastSeverity = aiSeverity;
+        symptomScore[cId].lastDiseases = normalizedDiseases;
+        symptomScore[cId].lastSeverity = aiSeverity;
 
-      // 分級判斷
-      /** @type {'none' | 'stable' | 'critical'} */
-      const stableScore = symptomScore[cId].score;
+        // 分級判斷
+        /** @type {'none' | 'stable' | 'critical'} */
+        const stableScore = symptomScore[cId].score;
 
-      if (aiSeverity === '低' && stableScore >= 2) {
-        finalCheckType = 'stable';
-      } else if (aiSeverity === '中' && stableScore >= 3) {
-        finalCheckType = 'stable';
-      } else if (aiSeverity === '高') {
-        finalCheckType = 'critical';
-      }
+        if (aiSeverity === '低' && stableScore >= 2) {
+          finalCheckType = 'stable';
+        } else if (aiSeverity === '中' && stableScore >= 3) {
+          finalCheckType = 'stable';
+        } else if (aiSeverity === '高') {
+          finalCheckType = 'critical';
+        }
 
-      console.log('疾病交集:', overlap);
-      console.log('穩定分數:', stableScore);
-      console.log('嚴重度:', aiSeverity);
-      console.log('結案類型:', finalCheckType);
-
-      // 判斷是否可進入 finalCheck（傳入 finalCheckType）
-      shouldFinalize = shouldAutoFinalize({
-        diseases: aiDiseases,
-        severity: aiSeverity,
-        followUp: nextQuestion,
-        userMessage: message,
-        finalCheckType,
-        stableScore
-      });
+        // 判斷是否可進入 finalCheck（傳入 finalCheckType）
+        shouldFinalize = shouldAutoFinalize({
+          diseases: aiDiseases,
+          severity: aiSeverity,
+          followUp: nextQuestion,
+          userMessage: message,
+          finalCheckType,
+          stableScore
+        });
       
-      console.log('Rule-based 判斷是否可結案:', shouldFinalize);
-    }catch (err) {
-      console.warn('⚠️ AI 疾病+追問解析失敗:', err.message);
-    }
+        console.log('Rule-based 判斷是否可結案:', shouldFinalize);
+      }catch (err) {
+        console.warn('⚠️ AI 疾病+追問解析失敗:', err.message);
+      }
  
       // 如果還沒到 finalCheck 階段 → 先回 AI 判斷，不查 DB
       if (!shouldFinalize) {
@@ -229,21 +209,28 @@ router.post('/chat', async (req, res) => {
           conversationId: cId,
           shouldFinalize
         });
+      }else{
+        // finalCheck = true → 查 DB
+        console.log('是否進入 finalCheck:', finalCheck || shouldFinalize);
+        try {
+          dbDiseases = await matchDiseasesByAliases(aiDiseases); 
+        } catch (error) {
+          console.error("疾病 alias 比對失敗:", error);
+        }
       }
     }  
-  
-    // finalCheck = true → 查 DB
-    let dbDiseases = [];
-    console.log('是否進入 finalCheck:', finalCheck || shouldFinalize);
-    try {
-      dbDiseases = await matchDiseasesByAliases(aiDiseases); 
-    } catch (error) {
-      console.error("疾病 alias 比對失敗:", error);
-    }
-
-
+    
     // 決定最終嚴重度與建議
     const dbDiseasesSafe = dbDiseases ?? [];
+    const dbAdvice = dbDiseasesSafe.map(d => d.advice).join('；') || '建議觀察情況，若惡化請就醫。';
+    const identified = dbDiseasesSafe.length > 0
+      ? dbDiseasesSafe.map(d => d.name)
+      : aiDiseases;
+
+    const diseaseNameFinal =
+      (dbDiseasesSafe[0]?.name?.trim()) ||
+      (identified[0]?.trim()) ||
+      '未命名疾病';
 
     const dbSeverity = dbDiseasesSafe.some(d => d.severity === '高') ? '高'
       : dbDiseasesSafe.some(d => d.severity === '中') ? '中'
@@ -252,9 +239,6 @@ router.post('/chat', async (req, res) => {
     const finalSeverity = aiSeverity === '高' || dbSeverity === '高' ? '高'
       : aiSeverity === '中' || dbSeverity === '中' ? '中'
       : '低';
-
-    const dbAdvice = dbDiseasesSafe.map(d => d.advice).join('；') || '建議觀察情況，若惡化請就醫。';
-    const identified = dbDiseasesSafe.length > 0 ? dbDiseasesSafe.map(d => d.name) : aiDiseases;
 
     // 整合：生成 AI 回覆
     const finalPrompt = `
@@ -298,7 +282,7 @@ router.post('/chat', async (req, res) => {
     你是一位獸醫助理，請根據以下語氣風格回覆飼主：
     ${stylePrompt?.trim()}
 
-    請根據以下資訊，直接給出三點具體照護方法，避免重複過往建議，不需打招呼、不需安慰語、不需情緒化語句：
+    請根據以下資訊，直接給出兩點具體照護方法，避免重複過往建議，不需打招呼、不需安慰語、不需情緒化語句：
 
     寵物資訊：
     - 種類與名字：${petContext.species} ${petName}
@@ -313,8 +297,7 @@ router.post('/chat', async (req, res) => {
     {
       "suggestions": [
         "建議一",
-        "建議二",
-        "建議三"
+        "建議二"
       ]
     }
     `.trim();
@@ -340,6 +323,11 @@ router.post('/chat', async (req, res) => {
       }
     } catch (err) {
       console.warn('⚠️AI 生成照護建議失敗:', err.message);
+        careSuggestions = [
+          "建議觀察情況，若有惡化請儘速就醫。",
+          "提供清淡飲食並避免刺激性食物。",
+          "保持環境安靜，減少壓力。"
+        ];
     }
 
     // fallback：如果 AI 回傳空白，就用 prompt 裡的資訊手動組一段
@@ -352,19 +340,20 @@ router.post('/chat', async (req, res) => {
     }
 
     const showMapButton = finalSeverity === '高';
-    const confirmedDiseaseName = dbDiseases?.[0]?.name || aiDiseases?.[0] || '未命名疾病';
     const triggerMapSearch = finalCheckType === 'critical' && aiSeverity === '高';
+    const diseaseIdFinal = dbDiseasesSafe[0]?.diseaseId || 9999;
 
     // 回傳前端
     res.status(200).json({
       responseText: finalResponse,
-      isConversationEnd: false,
+      isConversationEnd: true,
       currentStep: 'provide_advice',
       severity: finalSeverity,
       possibleDiseases: identified,   // AI 原始候選清單
-      matchedDiseases: dbDiseases,    // DB 比對後的完整清單
-      diseaseName: confirmedDiseaseName, // 確定疾病名稱
+      matchedDiseases: dbDiseasesSafe,    // DB 比對後的完整清單
+      diseaseName: diseaseNameFinal, 
       finalAdvice: dbAdvice,
+      diseaseId: diseaseIdFinal,
       showMapButton,
       conversationId: cId,
       shouldFinalize,
