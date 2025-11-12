@@ -21,7 +21,7 @@ app.use(cors());
 app.use(express.json());
 
 // 路由設定
-app.use('/api/pet', petRoutes,); 
+app.use('/api/pet', petRoutes);
 app.use('/api/auth', authRoutes); 
 app.use('/api/ai', chatRoutes);
 app.use("/api/symptom", symptomRoutes);
@@ -35,6 +35,5 @@ app.listen(PORT, () => {
 });
 
 export const ai = new GoogleGenAI({}); 
-// 這裡將 db 導出，如果你需要在其他地方使用它
 export const dbPool = db; 
 

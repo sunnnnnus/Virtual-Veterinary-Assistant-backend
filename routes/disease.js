@@ -18,11 +18,7 @@ router.post("/match", async (req, res) => {
   try {
     const rows = await matchDiseasesByAliases(keywords);
 
-    if (rows.length === 0) {
-      return res.json({ diseases: [], message: "暫無符合的疾病（AI 與文字皆無匹配）" });
-    }
-
-    res.json({ diseases: rows, message: "找到相符疾病" });
+    res.json({ diseases: rows, message: "找到相符疾病或 AI fallback" });
   } catch (error) {
     console.error("disease match 失敗:", error);
     res.status(500).json({ error: "伺服器錯誤" });
