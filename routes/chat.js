@@ -75,6 +75,10 @@ router.post('/chat', async (req, res) => {
   console.log('收到聊天請求:', { userId, petId, message, conversationId, finalCheck });
   let shouldFinalize = false;
   let finalCheckType = 'none';
+  let dbDiseases = [];
+  let aiDiseases = [];
+  let aiSeverity = '';
+  let nextQuestion = '';
 
 
   try {
@@ -196,6 +200,20 @@ router.post('/chat', async (req, res) => {
         console.log('Rule-based 判斷是否可結案:', shouldFinalize);
       }catch (err) {
         console.warn('⚠️ AI 疾病+追問解析失敗:', err.message);
+        aiDiseases = [];
+        aiSeverity = '中';
+        nextQuestion = '目前系統忙碌，暫時無法生成追問，請描述更多症狀。';
+
+        return res.status(200).json({
+          responseText: nextQuestion,
+          isConversationEnd: false,
+          currentStep: 'gather_symptoms',
+          severity: aiSeverity,
+          possibleDiseases: aiDiseases,
+          conversationId: cId,
+          shouldFinalize: false,
+          error: err.message 
+        });
       }
  
       // 如果還沒到 finalCheck 階段 → 先回 AI 判斷，不查 DB
