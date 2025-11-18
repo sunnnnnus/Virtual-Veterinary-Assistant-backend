@@ -14,6 +14,7 @@ dotenv.config();
 };*/
 
 const isProd = process.env.NODE_ENV === 'production';
+const currentEnv = isProd ? 'Production' : 'Local';
 
 const dbConfig = {
   host: isProd ? process.env.PROD_DB_HOST : process.env.LOCAL_DB_HOST,
@@ -32,7 +33,7 @@ const pool = mysql.createPool(dbConfig);
 // 測試連線是否成功
 pool.getConnection()
     .then(connection => {
-        console.log('✅ MySQL Pool connected successfully to DB:', process.env.DB_NAME);
+        console.log('✅ MySQL Pool connected successfully to DB:', currentEnv);
         connection.release(); // 釋放連線
     })
     .catch(err => {

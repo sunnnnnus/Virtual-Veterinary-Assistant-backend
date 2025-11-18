@@ -343,8 +343,7 @@ router.post('/chat', async (req, res) => {
       console.warn('⚠️AI 生成照護建議失敗:', err.message);
         careSuggestions = [
           "建議觀察情況，若有惡化請儘速就醫。",
-          "提供清淡飲食並避免刺激性食物。",
-          "保持環境安靜，減少壓力。"
+          "提供清淡飲食並避免刺激性食物。"
         ];
     }
 
